@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export function FinalCTA() {
   return (
     <section className="bg-white py-20">
@@ -8,9 +10,9 @@ export function FinalCTA() {
             დაიწყე AZLA-ს გამოყენება და დაამატე მხოლოდ ის მოდულები, რომლებიც გჭირდება.
           </p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <a href="#" className="rounded-xl bg-white px-6 py-4 font-bold text-[#5e5bff] transition hover:bg-indigo-50">
-              დაიწყე უფასოდ
-            </a>
+            <Link href="/erp" className="rounded-xl bg-white px-6 py-4 font-bold text-[#5e5bff] transition hover:bg-indigo-50">
+              სისტემაში შესვლა
+            </Link>
             <a href="#" className="rounded-xl border border-white/35 px-6 py-4 font-bold text-white transition hover:bg-white/12">
               დაგვიკავშირდი
             </a>

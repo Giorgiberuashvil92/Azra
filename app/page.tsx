@@ -7,14 +7,12 @@ import { Header } from "@/components/landing/Header";
 import { Hero } from "@/components/landing/Hero";
 import { ModularPlatform } from "@/components/landing/ModularPlatform";
 import { Modules } from "@/components/landing/Modules";
-import { SocialProof } from "@/components/landing/SocialProof";
 
 export default function Home() {
   return (
     <main className="min-h-screen w-full bg-[#fbfcff] text-[#101936]">
       <Header />
       <Hero />
-      <SocialProof />
       <Modules />
       <ModularPlatform />
       <BusinessTypes />

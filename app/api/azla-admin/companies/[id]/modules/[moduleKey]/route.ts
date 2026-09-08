@@ -1,0 +1,24 @@
+import { NextResponse } from "next/server";
+import { readJsonResponse } from "@/lib/api/read-json-response";
+
+const API_URL = process.env.AZLA_API_URL ?? "http://localhost:4000/api";
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string; moduleKey: string }> },
+) {
+  const { id, moduleKey } = await params;
+
+  try {
+    const response = await fetch(`${API_URL}/companies/${id}/modules/${moduleKey}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(await request.json()),
+      cache: "no-store",
+    });
+
+    return NextResponse.json(await readJsonResponse(response), { status: response.status });
+  } catch {
+    return NextResponse.json({ message: "AZLA API is not available." }, { status: 503 });
+  }
+}

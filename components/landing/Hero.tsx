@@ -7,6 +7,7 @@ import {
   Sparkles,
   WandSparkles,
 } from "lucide-react";
+import Link from "next/link";
 import { DashboardPreview } from "./DashboardPreview";
 
 const values = [
@@ -57,10 +58,10 @@ export function Hero() {
             აირჩიე მხოლოდ ის მოდულები, რომლებიც შენს კომპანიას სჭირდება. გაყიდვები, საწყობი, ფინანსები, HR და სხვა.
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <a className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#5e5bff] to-[#8d55f7] px-6 py-4 text-center font-bold text-white shadow-xl shadow-[#6857ff]/25 transition hover:brightness-110" href="#">
-              დაიწყე უფასოდ
+            <Link className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#5e5bff] to-[#8d55f7] px-6 py-4 text-center font-bold text-white shadow-xl shadow-[#6857ff]/25 transition hover:brightness-110" href="/erp">
+              სისტემაში შესვლა
               <ArrowRight size={18} />
-            </a>
+            </Link>
             <a className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#6d5cff]/25 bg-white px-6 py-4 font-bold text-[#101936] shadow-sm transition hover:border-[#6d5cff]/45 hover:bg-indigo-50" href="#">
               <PlayCircle className="text-[#5e5bff]" size={20} />
               ნახე დემო 2 წუთში

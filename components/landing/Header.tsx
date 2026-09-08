@@ -1,6 +1,7 @@
 "use client";
 
 import { Menu, X } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 const navItems = [
@@ -34,15 +35,12 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
-          <a href="#" className="px-4 py-2 text-sm font-bold text-[#101936] transition hover:text-[#6857ff]">
-            შესვლა
-          </a>
-          <a
-            href="#"
+          <Link
+            href="/erp"
             className="rounded-xl bg-gradient-to-r from-[#5e5bff] to-[#8d55f7] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-[#6857ff]/25 transition hover:brightness-110"
           >
-            დაიწყე უფასოდ
-          </a>
+            სისტემაში შესვლა
+          </Link>
         </div>
 
         <button
@@ -64,13 +62,10 @@ export function Header() {
                 {item}
               </a>
             ))}
-            <div className="mt-2 grid gap-3 sm:grid-cols-2">
-              <a className="rounded-xl border border-indigo-950/10 px-4 py-3 text-center" href="#">
-                შესვლა
-              </a>
-              <a className="rounded-xl bg-gradient-to-r from-[#5e5bff] to-[#8d55f7] px-4 py-3 text-center font-bold text-white" href="#">
-                დაიწყე უფასოდ
-              </a>
+            <div className="mt-2 grid gap-3">
+              <Link className="rounded-xl bg-gradient-to-r from-[#5e5bff] to-[#8d55f7] px-4 py-3 text-center font-bold text-white" href="/erp">
+                სისტემაში შესვლა
+              </Link>
             </div>
           </nav>
         </div>
