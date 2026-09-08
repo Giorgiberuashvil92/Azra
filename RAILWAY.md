@@ -4,11 +4,13 @@
 
 Railway service settings:
 
-- Root Directory: `/apps/web`
+- Root Directory: leave empty / repository root
 - Build Command: `npm run build`
 - Start Command: `npm run start -- -H 0.0.0.0 -p $PORT`
 
 This app uses `output: "standalone"` in `next.config.ts`, which is the recommended production output for Railway.
+
+Important: this Git repository is already rooted at `apps/web`. Do not set Railway Root Directory to `/apps/web` for this repo, because Railway will look for a nested folder that does not exist.
 
 ## Variables
 
