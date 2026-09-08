@@ -1,0 +1,565 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ModuleCategory {
+  operations
+  finance
+  team
+  relationships
+  analytics
+  system
+}
+
+enum ModuleStatus {
+  active
+  planned
+}
+
+enum CompanyModuleStatus {
+  enabled
+  disabled
+}
+
+enum CompanyUserStatus {
+  active
+  invited
+  disabled
+}
+
+enum AccessRequestStatus {
+  new
+  contacted
+  approved
+  rejected
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String
+  passwordHash String
+  mustChangePassword Boolean @default(false)
+  status       String        @default("active")
+  companies    CompanyUser[]
+  auditLogs    AuditLog[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Company {
+  id           String          @id @default(cuid())
+  name         String
+  legalName    String?
+  taxId        String?
+  status       String          @default("active")
+  users        CompanyUser[]
+  roles        Role[]
+  modules      CompanyModule[]
+  products     Product[]
+  productCategories ProductCategory[]
+  customers    Customer[]
+  discounts    Discount[]
+  warehouses   Warehouse[]
+  purchaseDocuments PurchaseDocument[]
+  inventoryMovements InventoryMovement[]
+  settings     Json?
+  notifications Notification[]
+  auditLogs    AuditLog[]
+  integrations Integration[]
+  importBatches ImportBatch[]
+  externalReferences ExternalReference[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model AccessRequest {
+  id             String              @id @default(cuid())
+  companyName    String
+  legalName      String?
+  taxId          String?
+  industry       String?
+  employeeCount  String?
+  contactName    String
+  contactEmail   String
+  contactPhone   String?
+  selectedModules String[]
+  note           String?
+  status         AccessRequestStatus @default(new)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([contactEmail])
+  @@index([status])
+}
+
+model CompanyUser {
+  id        String            @id @default(cuid())
+  companyId String
+  userId    String
+  roleId    String?
+  status    CompanyUserStatus @default(active)
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role?             @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@unique([companyId, userId])
+  @@index([userId])
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  users       CompanyUser[]
+  permissions RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([companyId, name])
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String?
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+model ModuleDefinition {
+  id              String             @id
+  key             String             @unique
+  name            String
+  description     String
+  icon            String
+  category        ModuleCategory
+  route           String
+  sortOrder       Int
+  status          ModuleStatus
+  companyModules  CompanyModule[]
+  dependencies    ModuleDependency[] @relation("ModuleDependencies")
+  requiredBy      ModuleDependency[] @relation("RequiredModuleDependencies")
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+}
+
+model ModuleDependency {
+  id               String           @id @default(cuid())
+  moduleId         String
+  requiredModuleId String
+  module           ModuleDefinition @relation("ModuleDependencies", fields: [moduleId], references: [id], onDelete: Cascade)
+  requiredModule   ModuleDefinition @relation("RequiredModuleDependencies", fields: [requiredModuleId], references: [id], onDelete: Cascade)
+
+  @@unique([moduleId, requiredModuleId])
+  @@index([requiredModuleId])
+}
+
+model CompanyModule {
+  id         String              @id @default(cuid())
+  companyId  String
+  moduleId   String
+  status     CompanyModuleStatus @default(disabled)
+  enabledAt  DateTime?
+  disabledAt DateTime?
+  company    Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  module     ModuleDefinition    @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  @@unique([companyId, moduleId])
+  @@index([moduleId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  companyId String
+  title     String
+  body      String?
+  readAt    DateTime?
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  companyId  String
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+
+  @@index([companyId, entityType])
+  @@index([userId])
+}
+
+model Integration {
+  id        String   @id @default(cuid())
+  companyId String
+  key       String
+  name      String
+  status    String   @default("inactive")
+  config    Json?
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, key])
+}
+
+model ImportBatch {
+  id        String   @id @default(cuid())
+  companyId String
+  provider  String
+  entityType String
+  status    String   @default("draft")
+  totals    Json?
+  metadata  Json?
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, provider, entityType])
+}
+
+model ExternalReference {
+  id          String   @id @default(cuid())
+  companyId   String
+  provider    String
+  entityType  String
+  entityId    String
+  externalUid String
+  externalCode String?
+  metadata    Json?
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, provider, entityType, externalUid])
+  @@index([companyId, entityType, entityId])
+}
+
+enum ProductType {
+  stocked
+  service
+  expense
+}
+
+enum PurchaseStatus {
+  imported
+  needs_mapping
+  ready_to_receive
+  received
+  cancelled
+}
+
+enum InventoryMovementType {
+  purchase_in
+  sale_out
+  adjustment
+}
+
+enum DiscountType {
+  percent
+  amount
+  fixed_price
+  quantity_tier
+  buy_x_get_y
+  cart_total
+  expiry_based
+  stock_based
+}
+
+enum DiscountStatus {
+  draft
+  active
+  paused
+  expired
+}
+
+enum DiscountScope {
+  all_products
+  products
+  categories
+  cart
+  customer
+}
+
+model Product {
+  id              String       @id @default(cuid())
+  companyId       String
+  name            String
+  sku             String?
+  barcode         String?
+  category        String?
+  categoryId      String?
+  brand           String?
+  description     String?
+  unit            String       @default("ცალი")
+  type            ProductType  @default(stocked)
+  isPurchasable   Boolean      @default(true)
+  isSellable      Boolean      @default(true)
+  tracksInventory Boolean      @default(true)
+  tracksLots      Boolean      @default(false)
+  tracksExpiry    Boolean      @default(false)
+  costPrice       Decimal      @default(0)
+  salePrice       Decimal      @default(0)
+  currency        String       @default("GEL")
+  vatRate         Decimal      @default(18)
+  discountPercent Decimal?
+  discountAmount  Decimal?
+  discountName    String?
+  minStock        Decimal      @default(0)
+  reorderPoint    Decimal      @default(0)
+  supplierSku     String?
+  rsName          String?
+  defaultWarehouseId String?
+  source          String       @default("manual")
+  importBatchId   String?
+  externalUid     String?
+  externalData    Json?
+  lastImportedAt  DateTime?
+  syncStatus      String       @default("local")
+  status          String       @default("active")
+  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  categoryRef     ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  defaultWarehouse Warehouse?  @relation("ProductDefaultWarehouse", fields: [defaultWarehouseId], references: [id], onDelete: SetNull)
+  discounts       DiscountProduct[]
+  purchaseLines   PurchaseLine[]
+  movements       InventoryMovement[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([companyId, sku])
+  @@unique([companyId, barcode])
+  @@index([companyId])
+  @@index([categoryId])
+  @@index([defaultWarehouseId])
+  @@index([companyId, source])
+  @@index([companyId, externalUid])
+}
+
+model ProductCategory {
+  id          String   @id @default(cuid())
+  companyId   String
+  parentId    String?
+  name        String
+  path        String
+  level       Int      @default(1)
+  source      String   @default("manual")
+  externalUid String?
+  status      String   @default("active")
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parent      ProductCategory? @relation("ProductCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children    ProductCategory[] @relation("ProductCategoryTree")
+  products    Product[]
+  discounts   DiscountCategory[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, parentId, name])
+  @@unique([companyId, path])
+  @@index([companyId])
+  @@index([parentId])
+}
+
+model Discount {
+  id             String         @id @default(cuid())
+  companyId      String
+  name           String
+  type           DiscountType
+  scope          DiscountScope  @default(products)
+  value          Decimal?
+  currency       String         @default("GEL")
+  priority       Int            @default(100)
+  stackable      Boolean        @default(false)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  minQuantity    Decimal?
+  minAmount      Decimal?
+  buyQuantity    Int?
+  getQuantity    Int?
+  channel        String         @default("all")
+  status         DiscountStatus @default(draft)
+  notes          String?
+  ruleConfig     Json?
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  products       DiscountProduct[]
+  categories     DiscountCategory[]
+  customers      DiscountCustomer[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([companyId, name])
+  @@index([companyId, status])
+  @@index([companyId, type])
+}
+
+model Customer {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  code        String?
+  taxId       String?
+  personalId  String?
+  phone       String?
+  email       String?
+  source      String   @default("manual")
+  externalUid String?
+  externalData Json?
+  status      String   @default("active")
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  discounts   DiscountCustomer[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, code])
+  @@unique([companyId, taxId])
+  @@unique([companyId, personalId])
+  @@index([companyId])
+  @@index([companyId, source])
+  @@index([companyId, externalUid])
+}
+
+model DiscountCustomer {
+  id         String   @id @default(cuid())
+  discountId String
+  customerId String
+  discount   Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([discountId, customerId])
+  @@index([customerId])
+}
+
+model DiscountProduct {
+  id         String   @id @default(cuid())
+  discountId String
+  productId  String
+  discount   Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([discountId, productId])
+  @@index([productId])
+}
+
+model DiscountCategory {
+  id         String          @id @default(cuid())
+  discountId String
+  categoryId String
+  discount   Discount        @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  category   ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime        @default(now())
+
+  @@unique([discountId, categoryId])
+  @@index([categoryId])
+}
+
+model Warehouse {
+  id        String      @id @default(cuid())
+  companyId String
+  name      String
+  code      String?
+  address   String?
+  source    String      @default("manual")
+  externalUid String?
+  externalData Json?
+  status    String      @default("active")
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  purchases PurchaseDocument[]
+  movements InventoryMovement[]
+  defaultProducts Product[] @relation("ProductDefaultWarehouse")
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([companyId, externalUid])
+}
+
+model PurchaseDocument {
+  id             String         @id @default(cuid())
+  companyId      String
+  warehouseId    String?
+  supplierName   String
+  supplierTaxId  String?
+  documentNumber String
+  documentDate   DateTime
+  source         String         @default("manual")
+  status         PurchaseStatus @default(imported)
+  total          Decimal        @default(0)
+  vatTotal       Decimal        @default(0)
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  warehouse      Warehouse?     @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  lines          PurchaseLine[]
+  movements      InventoryMovement[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([companyId, documentNumber])
+  @@index([companyId, status])
+}
+
+model PurchaseLine {
+  id          String           @id @default(cuid())
+  purchaseId  String
+  productId   String?
+  externalName String
+  externalSku  String?
+  quantity    Decimal
+  unitCost    Decimal
+  vatRate     Decimal          @default(18)
+  lineTotal   Decimal
+  purchase    PurchaseDocument @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product     Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+  movements   InventoryMovement[]
+
+  @@index([purchaseId])
+  @@index([productId])
+}
+
+model InventoryMovement {
+  id         String                @id @default(cuid())
+  companyId  String
+  productId  String
+  warehouseId String
+  purchaseId String?
+  lineId     String?
+  type       InventoryMovementType
+  quantity   Decimal
+  unitCost   Decimal?
+  note       String?
+  company    Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product    Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse  Warehouse            @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  purchase   PurchaseDocument?    @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+  line       PurchaseLine?        @relation(fields: [lineId], references: [id], onDelete: SetNull)
+  createdAt  DateTime             @default(now())
+
+  @@index([companyId, productId])
+  @@index([warehouseId])
+}
