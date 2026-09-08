@@ -10,6 +10,7 @@ import { IntegrationsModule } from "./modules/integrations/integrations.module";
 import { ModuleRegistryModule } from "./modules/module-registry/module-registry.module";
 import { ProductsModule } from "./modules/products/products.module";
 import { PurchasesModule } from "./modules/purchases/purchases.module";
+import { SalesModule } from "./modules/sales/sales.module";
 import { WarehousesModule } from "./modules/warehouses/warehouses.module";
 import { PrismaModule } from "./prisma/prisma.module";
 
@@ -28,6 +29,7 @@ import { PrismaModule } from "./prisma/prisma.module";
     ProductsModule,
     WarehousesModule,
     PurchasesModule,
+    SalesModule,
   ],
 })
 export class AppModule {}

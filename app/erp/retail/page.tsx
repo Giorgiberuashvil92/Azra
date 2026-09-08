@@ -1,14 +1,25 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { ArrowLeft, Banknote, Barcode, Boxes, Building2, ChartColumn, ChevronRight, CreditCard, LayoutGrid, List, Minus, MoreHorizontal, Plus, Printer, ReceiptText, RotateCcw, Search, ShieldCheck, ShoppingCart, Store, Trash2, UserRound, X } from "lucide-react";
 import Link from "next/link";
+import { getAuthHeaders } from "@/components/erp/CoreModuleShell";
 import { RetailShell } from "./_components/retail-shell";
 
 type RetailRole = "cashier" | "manager";
+type Product = {
+  id: string;
+  name: string;
+  barcode: string;
+  price: number;
+  stock: number;
+  category: string;
+  color: string;
+  thumbnail: string;
+};
 
-const initialProducts = [
+const initialProducts: Product[] = [
   { id: "p1", name: "Coca-Cola 0.5L", barcode: "5449000000996", price: 1.5, stock: 38, category: "სასმელები", color: "rose", thumbnail: "🥤" },
   { id: "p2", name: "ბორჯომი 1.5L", barcode: "4860102030219", price: 2.7, stock: 12, category: "სასმელები", color: "blue", thumbnail: "🍾" },
   { id: "p3", name: "მინერალური წყალი 0.5L", barcode: "4860102030172", price: 1.2, stock: 41, category: "სასმელები", color: "blue", thumbnail: "💧" },
@@ -48,7 +59,6 @@ const initialCart = [
   { id: "p3", qty: 3 },
 ];
 
-type Product = (typeof initialProducts)[number];
 type CartLine = { id: string; qty: number };
 type PaymentMethod = "cash" | "card" | "other";
 type SaleReceipt = {
@@ -123,8 +133,34 @@ function CashierBoard() {
   const [payment, setPayment] = useState<PaymentMethod>("cash");
   const [discountPercent, setDiscountPercent] = useState(0);
   const [lastReceipt, setLastReceipt] = useState<SaleReceipt | null>(null);
-  const [receiptSeq, setReceiptSeq] = useState(787);
   const [saleMessage, setSaleMessage] = useState("");
+  const [isCompletingSale, setIsCompletingSale] = useState(false);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadProducts() {
+      try {
+        const response = await fetch("/api/erp/products", {
+          headers: getAuthHeaders(),
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const products = await response.json();
+        if (!Array.isArray(products) || products.length === 0 || ignore) return;
+        setProductItems(products.map(mapApiProductToPos));
+        setCart([]);
+      } catch {
+        setSaleMessage("API ჯერ არ არის მიბმული, ნაჩვენებია demo პროდუქტები");
+      }
+    }
+
+    void loadProducts();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const filteredProducts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -173,40 +209,66 @@ function CashierBoard() {
     setCart((current) => current.filter((item) => item.id !== productId));
   }
 
-  function completeSale() {
+  async function completeSale() {
     if (cartItems.length === 0) return;
     const unavailable = cartItems.find((item) => item.qty > item.product.stock);
     if (unavailable) {
       setSaleMessage(`${unavailable.product.name}: მარაგი არ არის საკმარისი`);
       return;
     }
-    const receipt: SaleReceipt = {
-      cashier: "ნინო კალანდაძე",
-      createdAt: new Date(),
-      discount,
-      discountPercent,
-      items: cartItems.map((item) => ({
-        barcode: item.product.barcode,
-        name: item.product.name,
-        price: item.product.price,
-        qty: item.qty,
-        total: item.qty * item.product.price,
-      })),
-      number: `AZ-${new Date().getFullYear()}-${String(receiptSeq).padStart(6, "0")}`,
-      payment,
-      subtotal,
-      total,
-    };
+    setIsCompletingSale(true);
+    setSaleMessage("");
 
-    setProductItems((current) => current.map((product) => {
-      const sold = cart.find((item) => item.id === product.id)?.qty ?? 0;
-      return sold > 0 ? { ...product, stock: Math.max(0, product.stock - sold) } : product;
-    }));
-    setCart([]);
-    setDiscountPercent(0);
-    setReceiptSeq((current) => current + 1);
-    setSaleMessage(`გაყიდვა დასრულდა · ჩეკი ${receipt.number}`);
-    setLastReceipt(receipt);
+    try {
+      const response = await fetch("/api/erp/retail/sales", {
+        method: "POST",
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentMethod: payment,
+          discountPercent,
+          items: cartItems.map((item) => ({
+            productId: item.product.id,
+            quantity: item.qty,
+          })),
+        }),
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message ?? "გაყიდვა ვერ დასრულდა");
+      }
+
+      const receipt: SaleReceipt = {
+        cashier: result.cashierName ?? "ნინო კალანდაძე",
+        createdAt: new Date(result.createdAt),
+        discount: Number(result.discount),
+        discountPercent: Number(result.discountPercent),
+        items: result.lines.map((item: { barcode: string | null; name: string; quantity: number; unitPrice: number; lineTotal: number }) => ({
+          barcode: item.barcode ?? "",
+          name: item.name,
+          price: Number(item.unitPrice),
+          qty: Number(item.quantity),
+          total: Number(item.lineTotal),
+        })),
+        number: result.receiptNumber,
+        payment,
+        subtotal: Number(result.subtotal),
+        total: Number(result.total),
+      };
+
+      setProductItems((current) => current.map((product) => {
+        const sold = cart.find((item) => item.id === product.id)?.qty ?? 0;
+        return sold > 0 ? { ...product, stock: Math.max(0, product.stock - sold) } : product;
+      }));
+      setCart([]);
+      setDiscountPercent(0);
+      setSaleMessage(`გაყიდვა დასრულდა · ჩეკი ${receipt.number}`);
+      setLastReceipt(receipt);
+    } catch (error) {
+      setSaleMessage(error instanceof Error ? error.message : "გაყიდვა ვერ დასრულდა");
+    } finally {
+      setIsCompletingSale(false);
+    }
   }
 
   return (
@@ -317,8 +379,8 @@ function CashierBoard() {
             {["5 ₾", "10 ₾", "20 ₾", "50 ₾"].map((amount) => <button className="h-9 rounded-[10px] border border-[#E9E6EE] text-[13px] font-medium text-[#5F5870]" key={amount} type="button">{amount}</button>)}
           </div>
           {saleMessage ? <p className={saleMessage.includes("არ არის") ? "mt-2 rounded-[10px] bg-[#FFF0F3] px-3 py-2 text-[12px] font-medium text-[#D7264B]" : "mt-2 rounded-[10px] bg-[#E6F8F0] px-3 py-2 text-[12px] font-medium text-[#087C58]"}>{saleMessage}</p> : null}
-          <button className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[13px] bg-[#2563EB] px-5 text-[14px] font-semibold text-white shadow-[0_12px_24px_rgba(37,99,235,0.2)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:bg-[#B9C7E8] disabled:shadow-none" disabled={cartItems.length === 0} onClick={completeSale} type="button">
-            გაყიდვის დასრულება {total.toFixed(2)} ₾
+          <button className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[13px] bg-[#2563EB] px-5 text-[14px] font-semibold text-white shadow-[0_12px_24px_rgba(37,99,235,0.2)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:bg-[#B9C7E8] disabled:shadow-none" disabled={cartItems.length === 0 || isCompletingSale} onClick={completeSale} type="button">
+            {isCompletingSale ? "მუშავდება..." : `გაყიდვის დასრულება ${total.toFixed(2)} ₾`}
             <ChevronRight size={20} strokeWidth={1.8} />
           </button>
           <button className="mt-3 inline-flex w-full items-center justify-center gap-2 text-[13px] font-medium text-[#817B8D] transition hover:text-[#1D4ED8]" type="button">
@@ -353,6 +415,48 @@ function ProductButton({ onAdd, product }: { onAdd: () => void; product: Product
       </div>
     </button>
   );
+}
+
+function mapApiProductToPos(product: {
+  barcode?: string | null;
+  categoryPath?: string | null;
+  category?: string | null;
+  id: string;
+  name: string;
+  salePrice?: number | string | null;
+  stockQuantity?: number | string | null;
+}): Product {
+  const category = product.categoryPath ?? product.category ?? "სხვა";
+  return {
+    id: product.id,
+    name: product.name,
+    barcode: product.barcode ?? "—",
+    price: Number(product.salePrice ?? 0),
+    stock: Number(product.stockQuantity ?? 0),
+    category,
+    color: productToneKey(category),
+    thumbnail: productThumbnail(category, product.name),
+  };
+}
+
+function productToneKey(category: string) {
+  if (category.includes("სასმ")) return "blue";
+  if (category.includes("ტკბ")) return "amber";
+  if (category.includes("ხილ")) return "mint";
+  if (category.includes("სიგარ")) return "rose";
+  return "amber";
+}
+
+function productThumbnail(category: string, name: string) {
+  const normalized = `${category} ${name}`.toLowerCase();
+  if (normalized.includes("cola")) return "🥤";
+  if (normalized.includes("წყალი") || normalized.includes("ბორჯომ")) return "💧";
+  if (normalized.includes("რძე")) return "🥛";
+  if (normalized.includes("პური")) return "🍞";
+  if (normalized.includes("კვერცხ")) return "🥚";
+  if (normalized.includes("შოკოლ") || normalized.includes("snickers") || normalized.includes("kinder")) return "🍫";
+  if (normalized.includes("ხილ") || normalized.includes("ბანან")) return "🍌";
+  return "▣";
 }
 
 function ReceiptDialog({ onClose, receipt }: { onClose: () => void; receipt: SaleReceipt }) {
