@@ -3,6 +3,7 @@ import {
   Bot,
   Boxes,
   Building,
+  Building2,
   CreditCard,
   FolderKanban,
   BadgePercent,
@@ -36,6 +37,7 @@ export type ModuleKey =
   | "purchases"
   | "discounts"
   | "retail"
+  | "leases"
   | "sales"
   | "finance"
   | "accounting"
@@ -133,6 +135,17 @@ export const moduleRegistry: ModuleDefinition[] = [
     category: "operations",
     route: "/erp/retail",
     sortOrder: 48,
+    status: "active",
+  },
+  {
+    id: "mod_leases",
+    key: "leases",
+    name: "იჯარები",
+    description: "აქტივები, მოიჯარეები, ხელშეკრულებები, დარიცხვები და გადახდები.",
+    icon: Building2,
+    category: "finance",
+    route: "/erp/leases",
+    sortOrder: 8,
     status: "active",
   },
   {

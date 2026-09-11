@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { demoUserPermissions, type Company } from "@/lib/erp/company-modules";
 import { buildErpSidebar, type SidebarGroup } from "@/lib/erp/sidebar";
+import { AzlaLogo } from "./AzlaLogo";
 import { CompanySwitcher } from "./CompanySwitcher";
 
 type ErpSession = {
@@ -75,14 +76,8 @@ export function ErpSidebar({
 
   return (
     <aside className="hidden border-r border-indigo-950/8 bg-white px-5 py-6 lg:flex lg:flex-col">
-      <div className="flex items-center gap-3">
-        <span className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-[#5f63ff] to-[#d968e8] text-lg font-bold text-white shadow-lg shadow-violet-500/25">
-          A
-        </span>
-        <div>
-          <p className="text-lg font-bold">AZLA ERP</p>
-          <p className="text-xs font-medium text-slate-400">Business OS</p>
-        </div>
+      <div className="flex items-center">
+        <AzlaLogo priority />
       </div>
 
       <CompanySwitcher className="mt-6" companyName={company.name} />
